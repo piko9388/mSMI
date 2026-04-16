@@ -120,12 +120,19 @@ body{font-family:'Malgun Gothic','Trebuchet MS','Segoe UI',sans-serif;background
 .modal-f .btn{color:var(--text);border:1px solid var(--border);background:var(--card);padding:6px 14px;font-size:12px}
 .modal-f .btn-p{background:var(--accent);color:#fff;border-color:var(--accent)}
 .modal-f .btn-p:hover{background:#1d4ed8}
+.hist-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:.1s}
+.hist-item:hover{color:var(--accent)}
+.hist-item:last-child{border-bottom:0}
+.hist-date{font-weight:600;color:var(--text)}
+.hist-preview{color:var(--muted);font-size:10px;flex:1;margin:0 10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.hist-del{color:var(--red);cursor:pointer;font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:var(--card)}
+.hist-del:hover{background:#fef2f2}
 </style>
 </head>
 <body>
 
 <div class="hdr">
-  <div><div class="logo"><span>m</span>SMI <span style="font-size:11px;color:var(--muted);font-weight:400">v1.7</span></div><div class="logo-s">material Semiconductor & Market Intelligence</div></div>
+  <div style="cursor:pointer" onclick="goHome()"><div class="logo"><span>m</span>SMI <span style="font-size:11px;color:var(--muted);font-weight:400">v1.7</span></div><div class="logo-s">material Semiconductor & Market Intelligence</div></div>
   <div class="hdr-r">
     <span class="st"><span class="d" id="sDot"></span><span id="sTxt">Ready</span></span>
     <button class="btn" onclick="refreshAll()" id="rBtn">⟳ Refresh</button>
@@ -354,13 +361,20 @@ body{font-family:'Malgun Gothic','Trebuchet MS','Segoe UI',sans-serif;background
   <div class="modal">
     <div class="modal-h">
       <div>
-        <h2>📝 주간보고 외부동향 초안</h2>
+        <h2 id="wrTitle">📝 주간보고 외부동향 초안</h2>
         <div class="modal-meta" id="wrMeta">생성 중...</div>
       </div>
-      <button class="modal-x" onclick="closeWr()">×</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn btn-d" onclick="toggleWrHistory()" id="wrHistBtn" title="이전 보고서" style="font-size:11px">📂 이력</button>
+        <button class="modal-x" onclick="closeWr()">×</button>
+      </div>
     </div>
     <div class="modal-b" id="wrBody">
       <div class="modal-loading"><div class="spin"></div><br>Sonnet 4.6가 1주일치 데이터를 읽고 줄글로 정리 중...<br><span style="font-size:11px;color:var(--muted)">15~30초 소요</span></div>
+    </div>
+    <!-- 히스토리 패널 (토글) -->
+    <div id="wrHistPanel" style="display:none;border-top:1px solid var(--border);max-height:200px;overflow-y:auto;background:#fafafa">
+      <div id="wrHistList" style="padding:10px 22px;font-size:11px;color:var(--sub)">저장된 보고서 없음</div>
     </div>
     <div class="modal-f">
       <span class="meta" id="wrCost"></span>
@@ -973,6 +987,7 @@ async function weeklyReport(){
     document.getElementById('wrBody').innerHTML=`<textarea id="wrTextarea">${escapeHtml(wrText)}</textarea>`;
     document.getElementById('wrTextarea').addEventListener('input',e=>{wrText=e.target.value});
     log('✅ 주간보고 초안 생성 완료','tr');
+    saveWrHistory(wrText,wrRefs);
   }catch(e){
     document.getElementById('wrBody').innerHTML=`<div class="modal-loading" style="color:var(--red)">❌ 생성 실패<br><span style="font-size:11px">${escapeHtml(e.message)}</span><br><br><button class="btn btn-d" onclick="closeWr()" style="margin-top:10px">닫기</button></div>`;
     log(`❌ 주간보고: ${e.message}`,'err');
@@ -1140,7 +1155,10 @@ async function callClaudeWithModel(prompt,model,maxTokens=2500){
 
 function escapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
-window.closeWr=function(){document.getElementById('wrModal').classList.remove('on')};
+window.closeWr=function(){
+  document.getElementById('wrModal').classList.remove('on');
+  document.getElementById('wrHistPanel').style.display='none';
+};
 
 window.copyWr=function(){
   if(!wrText){alert('생성된 보고서가 없습니다');return}
@@ -1179,13 +1197,17 @@ window.downloadWr=function(format){
         const isRef=title.includes('참고문헌');
         const rest=lines.slice(1).map(l=>{
           if(isRef){
-            // [N] 패턴 → 하이퍼링크
-            l=l.replace(/\[(\d+)\]\s*/g,(m,n)=>{
-              const r=refMap[+n];
-              return r?`<a href="${escapeHtml(r.link)}" style="color:#2563eb" target="_blank">[${n}]</a> `:`[${n}] `;
-            });
+            // [N] 매칭 → 전체 라인을 링크로 변환 (제목 클릭 시 원문 이동)
+            const nm=l.match(/\[(\d+)\]/);
+            if(nm){
+              const r=refMap[+nm[1]];
+              if(r){
+                // [N] 출처, 일자 — 제목 전체를 하이퍼링크로
+                l=`<a href="${escapeHtml(r.link)}" style="color:#2563eb;text-decoration:none" target="_blank">${l}</a>`;
+              }
+            }
           }
-          return `<div style="margin:4px 0 8px 0">${l}</div>`;
+          return `<div style="margin:4px 0 8px 0;font-size:9pt">${l}</div>`;
         }).join('');
         return `<h3 style="font-size:12pt;margin:18px 0 8px;border-bottom:1px solid #ddd;padding-bottom:4px">${title}</h3>${rest}`;
       }
@@ -1222,6 +1244,84 @@ ${bodyHtml}
     win.document.close();
     setTimeout(()=>{win.print()},500);
   }
+};
+
+// ═════════════════════════════════════
+// 🏠 HOME
+// ═════════════════════════════════════
+function goHome(){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.tc').forEach(x=>x.classList.remove('on'));
+  document.querySelector('[data-t="industry"]').classList.add('on');
+  document.getElementById('t-industry').classList.add('on');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ═════════════════════════════════════
+// 📂 REPORT HISTORY
+// ═════════════════════════════════════
+const WR_HIST_KEY='msmi_wr_hist';
+const WR_HIST_MAX=20;
+
+function saveWrHistory(text,refs){
+  if(!text||text.length<50)return;
+  try{
+    const hist=JSON.parse(localStorage.getItem(WR_HIST_KEY)||'[]');
+    hist.unshift({
+      ts:Date.now(),
+      date:new Date().toLocaleString('ko-KR'),
+      text,
+      refs:refs||[],
+      preview:text.replace(/\n/g,' ').slice(0,80)
+    });
+    // 최대 20건
+    while(hist.length>WR_HIST_MAX)hist.pop();
+    localStorage.setItem(WR_HIST_KEY,JSON.stringify(hist));
+    log('📂 보고서 히스토리 저장 완료','tr');
+  }catch(e){log('⚠️ 히스토리 저장 실패: '+e.message,'warn')}
+}
+
+function loadWrHistory(){
+  try{return JSON.parse(localStorage.getItem(WR_HIST_KEY)||'[]')}catch(e){return []}
+}
+
+function renderWrHistory(){
+  const hist=loadWrHistory();
+  const el=document.getElementById('wrHistList');
+  if(!hist.length){el.innerHTML='<div style="padding:8px 0;color:var(--muted)">저장된 보고서가 없습니다.</div>';return}
+  el.innerHTML=hist.map((h,i)=>`
+    <div class="hist-item" onclick="loadHistReport(${i})">
+      <span class="hist-date">${h.date}</span>
+      <span class="hist-preview">${escapeHtml(h.preview)}</span>
+      <button class="hist-del" onclick="event.stopPropagation();deleteHistReport(${i})" title="삭제">✕</button>
+    </div>
+  `).join('');
+}
+
+window.toggleWrHistory=function(){
+  const panel=document.getElementById('wrHistPanel');
+  const isHidden=panel.style.display==='none';
+  panel.style.display=isHidden?'block':'none';
+  if(isHidden)renderWrHistory();
+};
+
+window.loadHistReport=function(idx){
+  const hist=loadWrHistory();
+  const h=hist[idx];if(!h)return;
+  wrText=h.text;
+  wrRefs=h.refs||[];
+  document.getElementById('wrMeta').textContent=`이력 보기 · ${h.date}`;
+  document.getElementById('wrBody').innerHTML=`<textarea id="wrTextarea">${escapeHtml(wrText)}</textarea>`;
+  document.getElementById('wrTextarea').addEventListener('input',e=>{wrText=e.target.value});
+  document.getElementById('wrHistPanel').style.display='none';
+};
+
+window.deleteHistReport=function(idx){
+  if(!confirm('이 보고서를 삭제하시겠습니까?'))return;
+  const hist=loadWrHistory();
+  hist.splice(idx,1);
+  localStorage.setItem(WR_HIST_KEY,JSON.stringify(hist));
+  renderWrHistory();
 };
 
 document.addEventListener('keydown',e=>{
