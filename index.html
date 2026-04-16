@@ -1198,15 +1198,22 @@ window.downloadWr=function(format){
 <style>
 @page{size:A4;margin:25mm 20mm 25mm 20mm}
 body{font-family:'맑은 고딕','Malgun Gothic','Noto Sans KR',sans-serif;font-size:10.5pt;line-height:1.75;color:#1e293b;max-width:660px;margin:0 auto;padding:0}
+.header-bar{background:#0f1724;height:4px;margin-bottom:16px}
+.org{font-size:9pt;color:#64748b;text-align:right;margin-bottom:2px}
 h1{font-size:15pt;font-weight:700;border-bottom:2.5px solid #0f1724;padding-bottom:8px;margin-bottom:4px}
 .meta{color:#64748b;font-size:8.5pt;margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid #e2e8f0}
 h3{font-size:11pt}
 a{color:#2563eb;text-decoration:none}
-.footer{margin-top:30px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:8pt;color:#94a3b8;text-align:center}
+.contact{margin-top:30px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:8.5pt;color:#475569}
+.contact b{color:#0f1724}
+.footer{margin-top:12px;font-size:7.5pt;color:#94a3b8;text-align:center}
 </style></head><body>
+<div class="header-bar"></div>
+<div class="org">SK hynix 소재전략</div>
 <h1>외부동향 모니터링</h1>
 <div class="meta">기간: ${new Date(Date.now()-7*864e5).toLocaleDateString('ko-KR')} ~ ${new Date().toLocaleDateString('ko-KR')} · 생성: ${new Date().toLocaleString('ko-KR')} · mSMI v1.7</div>
 ${bodyHtml}
+<div class="contact"><b>SK hynix 소재전략</b> · 이정훈 (TL) · junghoon12.lee@sk.com · 010-3376-7923</div>
 <div class="footer">본 보고서는 mSMI 자동 수집 데이터 기반으로 생성되었으며, 사실 검증은 원문 확인 권장</div>
 </body></html>`;
     const win=window.open('','_blank','width=800,height=1000');
